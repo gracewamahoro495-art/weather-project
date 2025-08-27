@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather App</title>
+
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+
+  // Replace with your Firebase config
+  const firebaseConfig = {
+   apiKey: "AIzaSyCzRbRuSl7wIQr8yMtzEW0_g8ZR-VdMruw",
+  authDomain: "weatherapp-a95de.firebaseapp.com",
+  projectId: "weatherapp-a95de",
+  storageBucket: "weatherapp-a95de.firebasestorage.app",
+  messagingSenderId: "696131475643",
+  appId: "1:696131475643:web:cd85757f6a79ee924bb19e",
+  measurementId: "G-08L586RQYJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // You can now use `auth` to handle signup/login
+</script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes cloudMove { 0% { transform: translateX(-200px); } 100% { transform: translateX(600px); } }
+    .cloud { animation: cloudMove 20s linear infinite; }
+    .raindrop { position: absolute; width: 2px; height: 10px; background: #00f; animation: rain 1s linear infinite; }
+    @keyframes rain { 0% { top: -10px; } 100% { top: 100%; } }
+  </style>
+</head>
+<body class="bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 flex items-center justify-center min-h-screen relative overflow-hidden transition-all duration-1000">
+
+  <!-- Animated Clouds -->
+  <div class="cloud absolute top-10 left-0 w-32 h-20 bg-white rounded-full opacity-70"></div>
+  <div class="cloud absolute top-20 left-[-150px] w-48 h-24 bg-white rounded-full opacity-60"></div>
+  <div class="cloud absolute top-40 left-[-200px] w-40 h-20 bg-white rounded-full opacity-50"></div>
+
+  <!-- LOGIN/SIGNUP CARD -->
+  <div id="auth-card" class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full z-10 relative">
+    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-6" id="auth-title">Login</h1>
+    
+    <form id="auth-form" class="space-y-4">
+      <input type="text" id="username" placeholder="Username" required
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+      <input type="password" id="password" placeholder="Password" required
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+      <button type="submit"
+        class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-all font-semibold" id="auth-btn">Login</button>
+    </form>
+
+    <p id="error-message" class="mt-4 text-red-500 text-center"></p>
+    <p class="mt-6 text-center text-gray-500 text-sm">
+      <span id="toggle-auth">Don't have an account? <a href="#" class="text-indigo-600 hover:underline">Sign Up</a></span>
+    </p>
+  </div>
+
+  <!-- WEATHER APP -->
+  <div id="weather-app" class="hidden flex flex-col items-center w-full max-w-md z-10">
+    <h2 class="text-2xl font-bold text-white mb-4">Check Weather</h2>
+    <div class="flex w-full mb-4">
+      <input type="text" id="city" placeholder="Enter city name" class="flex-1 px-4 py-2 rounded-l-lg focus:outline-none"/>
+      <button id="check-btn" class="bg-indigo-600 text-white px-4 rounded-r-lg hover:bg-indigo-700 transition-all">Check</button>
+    </div>
+    <div id="weather-display" class="bg-white rounded-2xl shadow-2xl p-6 w-full text-center relative">
+      <h3 id="city-name" class="text-xl font-bold mb-2"></h3>
+      <p id="temp" class="text-2xl font-semibold mb-2"></p>
+      <p id="description" class="text-lg"></p>
+      <div id="weather-animation" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+    </div>
+  </div>
+
+  <script>
+    const authCard = document.getElementById('auth-card');
+    const authForm = document.getElementById('auth-form');
+    const authTitle = document.getElementById('auth-title');
+    const authBtn = document.getElementById('auth-btn');
+    const toggleAuth = document.getElementById('toggle-auth');
+    const errorMessage = document.getElementById('error-message');
+
+    const weatherApp = document.getElementById('weather-app');
+    const cityInput = document.getElementById('city');
+    const checkBtn = document.getElementById('check-btn');
+    const cityName = document.getElementById('city-name');
+    const temp = document.getElementById('temp');
+    const description = document.getElementById('description');
+    const weatherAnimation = document.getElementById('weather-animation');
+
+    // Simple in-memory users storage (for demo)
+    let users = { user: '1234' };
+    let isLogin = true;
+
+    toggleAuth.addEventListener('click', function(e){
+      e.preventDefault();
+      isLogin = !isLogin;
+      if(isLogin){
+        authTitle.textContent = 'Login';
+        authBtn.textContent = 'Login';
+        toggleAuth.innerHTML = `Don't have an account? <a href="#" class="text-indigo-600 hover:underline">Sign Up</a>`;
+      } else {
+        authTitle.textContent = 'Sign Up';
+        authBtn.textContent = 'Sign Up';
+        toggleAuth.innerHTML = `Already have an account? <a href="#" class="text-indigo-600 hover:underline">Login</a>`;
+      }
+      errorMessage.textContent = '';
+    });
+
+    // AUTH FORM SUBMIT
+    authForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if(isLogin){
+        if(users[username] && users[username]===password){
+          errorMessage.textContent='';
+          authCard.classList.add('hidden');
+          weatherApp.classList.remove('hidden');
+        } else {
+          errorMessage.textContent='Invalid username or password ❌';
+        }
+      } else {
+        if(users[username]){
+          errorMessage.textContent='Username already exists ❌';
+        } else {
+          users[username] = password;
+          errorMessage.textContent='Account created successfully ✅';
+          isLogin = true;
+          authTitle.textContent = 'Login';
+          authBtn.textContent = 'Login';
+          toggleAuth.innerHTML = `Don't have an account? <a href="#" class="text-indigo-600 hover:underline">Sign Up</a>`;
+        }
+      }
+    });
+
+    // WEATHER API
+    checkBtn.addEventListener('click', async ()=>{
+      const city = cityInput.value.trim();
+      if(!city) return;
+      const apiKey = '26beba739b25415c2daf6f53774c32cb'; // Replace with OpenWeatherMap key
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.cod !== 200){
+        cityName.textContent='City not found';
+        temp.textContent='';
+        description.textContent='';
+        weatherAnimation.innerHTML='';
+        return;
+      }
+
+      cityName.textContent = data.name;
+      temp.textContent = `${data.main.temp}°C`;
+      description.textContent = data.weather[0].description;
+
+      // Weather Animation
+      const weatherMain = data.weather[0].main.toLowerCase();
+      weatherAnimation.innerHTML='';
+
+      if(weatherMain.includes('cloud')){
+        for(let i=0;i<5;i++){
+          const cloud = document.createElement('div');
+          cloud.className='cloud absolute w-24 h-12 bg-white rounded-full opacity-70';
+          cloud.style.top = `${Math.random()*50}%`;
+          cloud.style.left = `${Math.random()*100}%`;
+          weatherAnimation.appendChild(cloud);
+        }
+      } else if(weatherMain.includes('rain')){
+        for(let i=0;i<50;i++){
+          const drop = document.createElement('div');
+          drop.className='raindrop';
+          drop.style.left = `${Math.random()*100}%`;
+          drop.style.animationDuration = `${Math.random()*0.5 + 0.5}s`;
+          weatherAnimation.appendChild(drop);
+        }
+      } else if(weatherMain.includes('sun') || weatherMain.includes('clear')){
+        const sun = document.createElement('div');
+        sun.className='absolute top-0 right-0 w-16 h-16 bg-yellow-400 rounded-full shadow-lg animate-pulse';
+        weatherAnimation.appendChild(sun);
+      } else {
+        const cloud = document.createElement('div');
+        cloud.className='cloud absolute w-24 h-12 bg-white rounded-full opacity-70';
+        cloud.style.top='20%';
+        cloud.style.left='20%';
+        weatherAnimation.appendChild(cloud);
+      }
+    });
+  </script>
+</body>
+</html>
